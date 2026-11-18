@@ -31,7 +31,7 @@ import {
 } from 'https';
 import killable from 'killable';
 import { lookup as mimeTypeLookup } from 'mime-types';
-import { basename, extname, isAbsolute, resolve } from 'path';
+import { basename, extname, isAbsolute, parse, relative, resolve } from 'path';
 import { parse as qsParse } from 'qs';
 import { SecureContextOptions } from 'tls';
 import TypedEmitter from 'typed-emitter';
@@ -1244,7 +1244,7 @@ export class MockoonServer extends (EventEmitter as new () => TypedEmitter<Serve
    * Parse file paths and prevent path traversal
    *
    * If the path is absolute, it must stay within its original static base
-   * (before the first {{...}})
+   * directory (last folder separator before the first {{...}})
    * If the path is relative, it must stay within the environment base directory
    *
    * @param filePath
@@ -1252,16 +1252,23 @@ export class MockoonServer extends (EventEmitter as new () => TypedEmitter<Serve
    * @returns
    */
   private getSafeFilePath(filePath: string, request?: Request) {
-    const environmentDirectory = resolve(
+    const environmentBaseDir = resolve(
       this.options.environmentDirectory || '.'
     );
     const resolvePath = (path: string) => {
       const isPathAbsolute = isAbsolute(path);
 
-      return isPathAbsolute
-        ? resolve(path)
-        : resolve(environmentDirectory, path);
+      return isPathAbsolute ? resolve(path) : resolve(environmentBaseDir, path);
     };
+    const isPathInsideBase = (basePath: string, candidatePath: string) => {
+      const relativePath = relative(basePath, candidatePath);
+
+      return (
+        relativePath === '' ||
+        (!relativePath.startsWith('..') && !isAbsolute(relativePath))
+      );
+    };
+    const isFileSystemRoot = (path: string) => path === parse(path).root;
     // Convert backslashes to forward slashes (Windows compatibility)
     const rawFilePath = filePath.replace(/\\/g, '/');
 
@@ -1273,9 +1280,11 @@ export class MockoonServer extends (EventEmitter as new () => TypedEmitter<Serve
       return resolvePath(rawFilePath);
     }
 
-    // Extract static base from templated string (before first {{...}})
-    const staticBaseMatch = rawFilePath.match(/^([^{}]+)/);
-    const staticBaseDir = staticBaseMatch ? resolve(staticBaseMatch[1]) : null;
+    // Extract static base directory from templated string (last folder separator before the first {{...}})
+    const staticBaseMatch = rawFilePath.match(/^([^{}]*\/)/);
+    const staticBaseDir = staticBaseMatch?.[1]
+      ? resolvePath(staticBaseMatch[1])
+      : null;
 
     const parsedFilePath = TemplateParser(
       false,
@@ -1288,21 +1297,21 @@ export class MockoonServer extends (EventEmitter as new () => TypedEmitter<Serve
     // Determine if the path is absolute or relative
     const isPathAbsolute = isAbsolute(parsedFilePath);
     const resolvedPath = resolvePath(parsedFilePath);
+    const allowedBaseDir =
+      staticBaseDir ?? (!isPathAbsolute ? environmentBaseDir : null);
 
-    if (isPathAbsolute) {
-      // Absolute paths must stay within their original static base
-      if (!staticBaseDir || !resolvedPath.startsWith(staticBaseDir)) {
-        throw new Error(
-          `Access to absolute path outside of the original static base directory (${resolvedPath})`
-        );
-      }
-    } else {
-      // Relative paths must stay within the environment base directory
-      if (!resolvedPath.startsWith(environmentDirectory)) {
-        throw new Error(
-          `Access to relative path outside of the environment base directory (${resolvedPath})`
-        );
-      }
+    if (!allowedBaseDir || isFileSystemRoot(allowedBaseDir)) {
+      throw new Error(
+        `Templated file path requires a non-root base directory (${resolvedPath})`
+      );
+    }
+
+    if (!isPathInsideBase(allowedBaseDir, resolvedPath)) {
+      throw new Error(
+        isPathAbsolute
+          ? `Access to absolute path outside of the original static base directory (${resolvedPath})`
+          : `Access to relative path outside of the allowed base directory (${resolvedPath})`
+      );
     }
 
     return resolvedPath;

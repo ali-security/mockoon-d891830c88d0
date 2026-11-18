@@ -34,6 +34,62 @@
       "enabled": true,
       "responseMode": null,
       "type": "http"
+    },
+    {
+      "uuid": "7f0b6d16-6b0a-4a8f-96f7-6b3d1b1a2a52",
+      "documentation": "",
+      "method": "get",
+      "endpoint": "testfile/:route",
+      "responses": [
+        {
+          "uuid": "a3e6bb04-6d13-4a1a-9a1e-2f0f6a0b6a11",
+          "body": "",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [],
+          "filePath": "./file{{urlParam 'route'}}.json",
+          "sendFileAsBody": true,
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "databucketID": "",
+          "bodyType": "FILE"
+        }
+      ],
+      "enabled": true,
+      "responseMode": null,
+      "type": "http"
+    },
+    {
+      "uuid": "c2d5e8a1-3b4f-4c6d-9e7a-1f2b3c4d5e6f",
+      "documentation": "",
+      "method": "get",
+      "endpoint": "param2/:param",
+      "responses": [
+        {
+          "uuid": "d4e6f8a2-5c7e-4b9d-8f1a-2b3c4d5e6f70",
+          "body": "",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [],
+          "filePath": "../body-files/{{urlParam 'param'}}.txt",
+          "sendFileAsBody": true,
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "databucketID": "",
+          "bodyType": "FILE"
+        }
+      ],
+      "enabled": true,
+      "responseMode": null,
+      "type": "http"
     }
   ],
   "proxyMode": false,
@@ -63,6 +119,14 @@
     {
       "type": "route",
       "uuid": "e15f2c20-92aa-4390-8f83-2da2473b47ee"
+    },
+    {
+      "type": "route",
+      "uuid": "7f0b6d16-6b0a-4a8f-96f7-6b3d1b1a2a52"
+    },
+    {
+      "type": "route",
+      "uuid": "c2d5e8a1-3b4f-4c6d-9e7a-1f2b3c4d5e6f"
     }
   ]
 }
